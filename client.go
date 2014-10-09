@@ -20,7 +20,8 @@ func NewClient(config *Config) (*Client, error) {
 	c := Client{
 		config: *config,
 		http: http.Client{
-			Timeout:   10 * time.Second,
+			// Added on Go 1.3. Wait until it's more popular.
+			//Timeout:   10 * time.Second,
 			Transport: &unixTransport,
 		},
 	}
