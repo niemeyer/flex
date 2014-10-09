@@ -42,7 +42,7 @@ func (c *testCmd) run(args []string) error {
 	fmt.Println("Short option (-s):", c.short)
 	fmt.Println("Long option (--long):", c.long)
 
-	config, err := flex.ReadConfig(nil)
+	config, err := flex.LoadConfig()
 	if err != nil {
 		return err
 	}

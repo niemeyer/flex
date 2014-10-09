@@ -28,7 +28,7 @@ func (c *daemonCmd) run(args []string) error {
 		return errArgs
 	}
 
-	config, err := flex.ReadConfig(nil)
+	config, err := flex.LoadConfig()
 	if err != nil {
 		return err
 	}

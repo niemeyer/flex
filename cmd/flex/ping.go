@@ -22,7 +22,7 @@ func (c *pingCmd) run(args []string) error {
 	if len(args) > 0 {
 		return errArgs
 	}
-	config, err := flex.ReadConfig(nil)
+	config, err := flex.LoadConfig()
 	if err != nil {
 		return err
 	}
