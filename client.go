@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"path"
-	"time"
 )
 
 // Client can talk to a flex daemon.
