@@ -37,6 +37,6 @@ func (c *listCmd) run(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("got back: %s", l)
+	fmt.Println(l)
 	return err
 }

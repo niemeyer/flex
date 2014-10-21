@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"gopkg.in/tomb.v2"
+	"gopkg.in/lxc/go-lxc.v1"
 )
 
 // A Daemon can respond to requests from a flex client.
@@ -70,5 +71,9 @@ func (d *Daemon) servePing(w http.ResponseWriter, r *http.Request) {
 
 func (d *Daemon) serveList(w http.ResponseWriter, r *http.Request) {
 	Debugf("responding to list")
-	w.Write([]byte("Container 1\nContainer 2\n"))
+	c := lxc.DefinedContainers ("/var/lib/lxc")
+	for i := range c {
+		fmt.Fprintf(w, "%d: %s (%s)\n", i, c[i].Name(), c[i].State() )
+	}
+
 }
