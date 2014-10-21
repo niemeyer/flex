@@ -59,6 +59,7 @@ var commands = map[string]command{
 	"help":    &helpCmd{},
 	"daemon":  &daemonCmd{},
 	"ping":    &pingCmd{},
+	"list":    &listCmd{},
 
 	// This is a demo command. Drop after ideas are understood.
 	"test":    &testCmd{},

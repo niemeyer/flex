@@ -44,6 +44,15 @@ func (c *Client) Ping() error {
 	return nil
 }
 
+func (c *Client) List() (string, error) {
+	Debugf("Getting list from the daemon")
+	data, err := c.getstr("/list")
+	if err != nil {
+		return "fail", err
+	}
+	return data, err;
+}
+
 func (c *Client) getstr(elem ...string) (string, error) {
 	data, err := c.get(elem...)
 	if err != nil {

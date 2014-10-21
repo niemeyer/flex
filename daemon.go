@@ -35,6 +35,7 @@ func StartDaemon(config *Config) (*Daemon, error) {
 	d := &Daemon{config: *config}
 	d.mux = http.NewServeMux()
 	d.mux.HandleFunc("/ping", d.servePing)
+	d.mux.HandleFunc("/list", d.serveList)
 
 	addr, err := net.ResolveUnixAddr("unix", varPath("unix.socket"))
 	if err != nil {
@@ -65,4 +66,9 @@ func (d *Daemon) Stop() error {
 func (d *Daemon) servePing(w http.ResponseWriter, r *http.Request) {
 	Debugf("responding to ping")
 	w.Write([]byte("pong"))
+}
+
+func (d *Daemon) serveList(w http.ResponseWriter, r *http.Request) {
+	Debugf("responding to list")
+	w.Write([]byte("Container 1\nContainer 2\n"))
 }
