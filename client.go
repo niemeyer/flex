@@ -50,40 +50,40 @@ func (c *Client) List() (string, error) {
 	if err != nil {
 		return "fail", err
 	}
-	return data, err;
+	return data, err
 }
 
 func (c *Client) Create(name string, distro string, release string, arch string) (string, error) {
-  Debugf("Creating container")
-  url := fmt.Sprintf("/create?name=%s&distro=%s&release=%s&arch=%s", name, distro, release, arch);
-  data, err := c.getstr(url)
-  if err != nil {
-    return "fail", err
-  }
-  return data, err
+	Debugf("Creating container")
+	url := fmt.Sprintf("/create?name=%s&distro=%s&release=%s&arch=%s", name, distro, release, arch)
+	data, err := c.getstr(url)
+	if err != nil {
+		return "fail", err
+	}
+	return data, err
 }
 
 // Call a function in the flex API by name (i.e. this has nothing to do with
 // the parameter passing schemed :)
 func (c *Client) CallByName(function string, name string) (string, error) {
-  url := fmt.Sprintf("/%s?name=%s", function, name)
-  data, err := c.getstr(url)
-  if err != nil {
-    return "fail", err
-  }
-  return data, err
+	url := fmt.Sprintf("/%s?name=%s", function, name)
+	data, err := c.getstr(url)
+	if err != nil {
+		return "fail", err
+	}
+	return data, err
 }
 
 func (c *Client) Start(name string) (string, error) {
-  return c.CallByName("start", name)
+	return c.CallByName("start", name)
 }
 
 func (c *Client) Stop(name string) (string, error) {
-  return c.CallByName("stop", name)
+	return c.CallByName("stop", name)
 }
 
 func (c *Client) Status(name string) (string, error) {
-  return c.CallByName("status", name)
+	return c.CallByName("status", name)
 }
 
 func (c *Client) getstr(elem ...string) (string, error) {

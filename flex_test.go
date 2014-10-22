@@ -1,8 +1,8 @@
 package flex_test
 
 import (
-	"path/filepath"
 	"os"
+	"path/filepath"
 	"testing"
 
 	. "gopkg.in/check.v1"
@@ -32,7 +32,7 @@ func (s *FlexSuite) SetUpTest(c *C) {
 	s.realHome = os.Getenv("HOME")
 	s.tempHome = c.MkDir()
 	s.confPath = filepath.Join(s.tempHome, ".flex", "config.yaml")
-	os.Setenv("HOME", s.tempHome) 
+	os.Setenv("HOME", s.tempHome)
 
 	s.flexDir = c.MkDir()
 	os.Setenv("FLEX_DIR", s.flexDir)
