@@ -21,8 +21,12 @@ Creates a container using the specified release and arch
 func (c *byNameCmd) flags() {}
 
 func (c *byNameCmd) run(args []string) error {
-	if len(args) != 0 {
+	name := "foo"  // todo - come up with a random name as juju does
+	if len(args) > 1 {
 		return errArgs
+	}
+	if len(args) == 1 {
+		name = args[0]
 	}
 
 	config, err := flex.LoadConfig()
@@ -35,7 +39,7 @@ func (c *byNameCmd) run(args []string) error {
 		return err
 	}
 
-	data, err := c.do(d, "u1")
+	data, err := c.do(d, name)
 	fmt.Println(data)
 	return err
 }

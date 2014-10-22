@@ -39,6 +39,8 @@ func (c *createCmd) run(args []string) error {
 	}
 
 	l, err := d.Create(name, "ubuntu", "trusty", "amd64")
-	fmt.Println(l)
+	if err == nil {
+		fmt.Println(l)
+	}
 	return err
 }
