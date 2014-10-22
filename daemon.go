@@ -11,7 +11,7 @@ import (
 	"gopkg.in/tomb.v2"
 )
 
-const lxcpath = "/usr/local/var/lib/lxc"
+const lxcpath = "/var/lib/lxc"
 
 // A Daemon can respond to requests from a flex client.
 type Daemon struct {
