@@ -4,7 +4,7 @@ import (
 	"github.com/niemeyer/flex"
 )
 
-type pingCmd struct {}
+type pingCmd struct{}
 
 const pingUsage = `
 flex ping

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/niemeyer/flex"
 	"fmt"
+	"github.com/niemeyer/flex"
 )
 
-type listCmd struct {}
+type listCmd struct{}
 
 const listUsage = `
 flex list

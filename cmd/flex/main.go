@@ -60,9 +60,18 @@ var commands = map[string]command{
 	"daemon":  &daemonCmd{},
 	"ping":    &pingCmd{},
 	"list":    &listCmd{},
+	"create":  &createCmd{},
+	"start": &byNameCmd{
+		"start",
+		func(c *flex.Client, name string) (string, error) { return c.Start(name) },
+	},
+	"stop": &byNameCmd{
+		"stop",
+		func(c *flex.Client, name string) (string, error) { return c.Stop(name) },
+	},
 
 	// This is a demo command. Drop after ideas are understood.
-	"test":    &testCmd{},
+	"test": &testCmd{},
 }
 
 var errArgs = fmt.Errorf("too many subcommand arguments")
