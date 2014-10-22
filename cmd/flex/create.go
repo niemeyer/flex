@@ -20,8 +20,12 @@ func (c *createCmd) usage() string {
 func (c *createCmd) flags() {}
 
 func (c *createCmd) run(args []string) error {
-	if len(args) != 0 {
+	name := "foo"
+	if len(args) > 1 {
 		return errArgs
+	}
+	if len(args) == 1 {
+		name = args[0]
 	}
 	config, err := flex.LoadConfig()
 	if err != nil {
@@ -34,7 +38,7 @@ func (c *createCmd) run(args []string) error {
 		return err
 	}
 
-	l, err := d.Create("foo", "ubuntu", "trusty", "amd64")
+	l, err := d.Create(name, "ubuntu", "trusty", "amd64")
 	fmt.Println(l)
 	return err
 }
