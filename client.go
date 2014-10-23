@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"path"
 )
 
@@ -33,7 +34,7 @@ func NewClient(config *Config) (*Client, error) {
 // Ping pings the daemon to see if it is up listening and working.
 func (c *Client) Ping() error {
 	Debugf("pinging the daemon")
-	data, err := c.getstr("/ping")
+	data, err := c.getstr("/ping", nil)
 	if err != nil {
 		return err
 	}
@@ -46,7 +47,7 @@ func (c *Client) Ping() error {
 
 func (c *Client) List() (string, error) {
 	Debugf("Getting list from the daemon")
-	data, err := c.getstr("/list")
+	data, err := c.getstr("/list", nil)
 	if err != nil {
 		return "fail", err
 	}
@@ -54,9 +55,12 @@ func (c *Client) List() (string, error) {
 }
 
 func (c *Client) Create(name string, distro string, release string, arch string) (string, error) {
-	Debugf("Creating container")
-	url := fmt.Sprintf("/create?name=%s&distro=%s&release=%s&arch=%s", name, distro, release, arch)
-	data, err := c.getstr(url)
+	data, err := c.getstr("/create", map[string]string{
+		"name":    name,
+		"distro":  distro,
+		"release": release,
+		"arch":    arch,
+	})
 	if err != nil {
 		return "fail", err
 	}
@@ -66,10 +70,9 @@ func (c *Client) Create(name string, distro string, release string, arch string)
 // Call a function in the flex API by name (i.e. this has nothing to do with
 // the parameter passing schemed :)
 func (c *Client) CallByName(function string, name string) (string, error) {
-	url := fmt.Sprintf("/%s?name=%s", function, name)
-	data, err := c.getstr(url)
+	data, err := c.getstr("/"+function, map[string]string{"name": name})
 	if err != nil {
-		return "fail", err
+		return "", err
 	}
 	return data, err
 }
@@ -86,8 +89,13 @@ func (c *Client) Status(name string) (string, error) {
 	return c.CallByName("status", name)
 }
 
-func (c *Client) getstr(elem ...string) (string, error) {
-	data, err := c.get(elem...)
+func (c *Client) getstr(base string, args map[string]string) (string, error) {
+	vs := url.Values{}
+	for k, v := range args {
+		vs.Set(k, v)
+	}
+
+	data, err := c.get(base + "?" + vs.Encode())
 	if err != nil {
 		return "", err
 	}
