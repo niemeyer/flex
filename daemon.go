@@ -2,11 +2,13 @@ package flex
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/tomb.v2"
@@ -143,7 +145,65 @@ Debugf("1")
 			// Why do they never match?  TODO fix
 			// return
 		}
-		Debugf("ok, I would go ahead and attach")
+		Debugf("Attaching")
+
+		c, err := lxc.NewContainer(name, lxcpath)
+		if err != nil {
+			Debugf("%s", err.Error())
+		}
+
+		stdinReader, stdinWriter, err := os.Pipe()
+		if err != nil {
+			Debugf("%s", err.Error())
+		}
+		stdoutReader, stdoutWriter, err := os.Pipe()
+		if err != nil {
+			Debugf("%s", err.Error())
+		}
+		stderrReader, stderrWriter, err := os.Pipe()
+		if err != nil {
+			Debugf("%s", err.Error())
+		}
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := io.Copy(stdinWriter, conn)
+			if err != nil {
+				Debugf("%s", err.Error())
+			}
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := io.Copy(conn, stdoutReader)
+			if err != nil {
+				Debugf("%s", err.Error())
+			}
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err = io.Copy(conn, stderrReader)
+			if err != nil {
+				Debugf("%s", err.Error())
+			}
+		}()
+
+		options := lxc.DefaultAttachOptions
+
+		options.StdinFd = stdinReader.Fd()
+		options.StdoutFd = stdoutWriter.Fd()
+		options.StderrFd = stderrWriter.Fd()
+
+		options.ClearEnv = true
+		_, err = c.RunCommand([]string{command}, options)
+		if err != nil {
+			Debugf("%s", err.Error())
+		}
+
+		wg.Wait()
 	} (l, name, command, secret)
 }
 

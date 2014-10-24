@@ -3,7 +3,10 @@ package main
 import (
 	"github.com/niemeyer/flex"
 	"fmt"
+	"io"
 	"net"
+	"os"
+	"sync"
 )
 
 type attachCmd struct{}
@@ -71,7 +74,28 @@ func (c *attachCmd) run(args []string) error {
 		return err
 	}
 
+	var wg sync.WaitGroup
 	fmt.Println("Ready to attach conn to stdin/stdout")
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, err := io.Copy(os.Stdout, conn)
+		if err != nil {
+			fmt.Println("Error: %s", err.Error())
+			return
+		}
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, err := io.Copy(conn, os.Stdin)
+		if err != nil {
+			fmt.Println("Error: %s", err.Error())
+			return
+		}
+	}()
+
+	wg.Wait()
 
 	return nil
 }
