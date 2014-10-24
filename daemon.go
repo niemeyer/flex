@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/tomb.v2"
@@ -40,6 +41,7 @@ func StartDaemon(config *Config) (*Daemon, error) {
 	d.mux.HandleFunc("/ping", d.servePing)
 	d.mux.HandleFunc("/list", d.serveList)
 	d.mux.HandleFunc("/create", d.serveCreate)
+	d.mux.HandleFunc("/attach", d.serveAttach)
 
 	d.mux.HandleFunc("/start", buildByNameServe("start", func(c *lxc.Container) error { return c.Start() }))
 	d.mux.HandleFunc("/stop", buildByNameServe("stop", func(c *lxc.Container) error { return c.Stop() }))
@@ -84,6 +86,65 @@ func (d *Daemon) serveList(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%d: %s (%s)\n", i, c[i].Name(), c[i].State())
 	}
 
+}
+
+func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
+	Debugf("responding to attach")
+
+	name := r.FormValue("name")
+	if name == "" {
+		fmt.Fprintf(w, "failed parsing name")
+		return
+	}
+Debugf("1")
+
+	command := r.FormValue("command")
+	if command == "" {
+		fmt.Fprintf(w, "failed parsing command")
+		return
+	}
+
+	secret := r.FormValue("secret")
+	if secret == "" {
+		fmt.Fprintf(w, "failed parsing secret")
+		return
+	}
+
+	var err error
+	addr := ":0"
+	// tcp6 doesn't seem to work with Dial("tcp", ) at the client
+	l, err := net.Listen("tcp4", addr)
+	if err != nil {
+		fmt.Fprintf(w, "failed listening")
+		return
+	}
+	fmt.Fprintf(w, "Port: ", l.Addr().String())
+
+	go func (l net.Listener, name string, command string, secret string) {
+		conn, err := l.Accept()
+		l.Close()
+		if err != nil {
+			Debugf(err.Error())
+			return
+		}
+		defer conn.Close()
+		b := make([]byte, 100)
+		n, err := conn.Read(b)
+		if err != nil {
+			Debugf("bad read: %s", err.Error())
+			return
+		}
+		if n != len(secret) {
+			Debugf("read %d characters, secret is %d", n, len(secret))
+			return
+		}
+		if !strings.EqualFold(string(b), secret) {
+			Debugf("strings not equal")
+			// Why do they never match?  TODO fix
+			// return
+		}
+		Debugf("ok, I would go ahead and attach")
+	} (l, name, command, secret)
 }
 
 func (d *Daemon) serveCreate(w http.ResponseWriter, r *http.Request) {

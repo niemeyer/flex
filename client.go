@@ -54,6 +54,18 @@ func (c *Client) List() (string, error) {
 	return data, err
 }
 
+func (c *Client) Attach(name string, cmd string, secret string) (string, error) {
+	data, err := c.getstr("/attach", map[string]string{
+		"name":    name,
+		"command":  cmd,
+		"secret": secret,
+	})
+	if err != nil {
+		return "fail", err
+	}
+	return data, err
+}
+
 func (c *Client) Create(name string, distro string, release string, arch string) (string, error) {
 	data, err := c.getstr("/create", map[string]string{
 		"name":    name,
