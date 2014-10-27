@@ -12,6 +12,8 @@ import (
 
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/tomb.v2"
+
+	"github.com/kr/pty"
 )
 
 const lxcpath = "/var/lib/lxc"
@@ -151,73 +153,58 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 			Debugf("%s", err.Error())
 		}
 
-		stdinReader, stdinWriter, err := os.Pipe()
+		pty, tty, err := pty.Open()
+
 		if err != nil {
-			Debugf("%s", err.Error())
-		}
-		stdoutReader, stdoutWriter, err := os.Pipe()
-		if err != nil {
-			Debugf("%s", err.Error())
-		}
-		stderrReader, stderrWriter, err := os.Pipe()
-		if err != nil {
-			Debugf("%s", err.Error())
+			Debugf("Failed opening getting a tty: %q", err.Error())
 			return
 		}
 
+		defer pty.Close()
+		defer tty.Close()
+
+		Debugf("starting wg")
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := io.Copy(stdinWriter, conn)
+			_, err := io.Copy(pty, conn)
 			if err != nil {
-				Debugf("%s", err.Error())
+				Debugf("attach i/o loop error: %s", err.Error())
 				return
 			}
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := io.Copy(conn, stdoutReader)
+			_, err := io.Copy(conn, pty)
 			if err != nil {
-				Debugf("%s", err.Error())
+				Debugf("attach i/o loop error: %s", err.Error())
 				return
 			}
 		}()
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			_, err = io.Copy(conn, stderrReader)
-			if err != nil {
-				Debugf("%s", err.Error())
-				return
-			}
-		}()
 
 		options := lxc.DefaultAttachOptions
 
-		options.StdinFd = stdinReader.Fd()
-		options.StdoutFd = stdoutWriter.Fd()
-		options.StderrFd = stderrWriter.Fd()
+		options.StdinFd = tty.Fd()
+		options.StdoutFd = tty.Fd()
+		options.StderrFd = tty.Fd()
 
 		options.ClearEnv = true
+		Debugf("doing runcommand")
+
 		_, err = c.RunCommand([]string{command}, options)
+		Debugf("after runcommand")
 		if err != nil {
-			Debugf("%s", err.Error())
+			Debugf("RunCommand error: %s", err.Error())
 			return
 		}
 
-		if err = stdoutWriter.Close(); err != nil {
-			Debugf("%s", err.Error())
-			return
-		}
-		if err = stderrWriter.Close(); err != nil {
-			Debugf("%s", err.Error())
-			return
-		}
-
-
+		Debugf("waiting on wg")
 		wg.Wait()
+		Debugf("done waiting on wg")
+
 	} (l, name, command, secret)
 }
 
