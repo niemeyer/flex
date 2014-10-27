@@ -98,7 +98,6 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "failed parsing name")
 		return
 	}
-Debugf("1")
 
 	command := r.FormValue("command")
 	if command == "" {
@@ -163,6 +162,7 @@ Debugf("1")
 		stderrReader, stderrWriter, err := os.Pipe()
 		if err != nil {
 			Debugf("%s", err.Error())
+			return
 		}
 
 		var wg sync.WaitGroup
@@ -172,6 +172,7 @@ Debugf("1")
 			_, err := io.Copy(stdinWriter, conn)
 			if err != nil {
 				Debugf("%s", err.Error())
+				return
 			}
 		}()
 		wg.Add(1)
@@ -180,6 +181,7 @@ Debugf("1")
 			_, err := io.Copy(conn, stdoutReader)
 			if err != nil {
 				Debugf("%s", err.Error())
+				return
 			}
 		}()
 		wg.Add(1)
@@ -188,6 +190,7 @@ Debugf("1")
 			_, err = io.Copy(conn, stderrReader)
 			if err != nil {
 				Debugf("%s", err.Error())
+				return
 			}
 		}()
 
@@ -201,7 +204,18 @@ Debugf("1")
 		_, err = c.RunCommand([]string{command}, options)
 		if err != nil {
 			Debugf("%s", err.Error())
+			return
 		}
+
+		if err = stdoutWriter.Close(); err != nil {
+			Debugf("%s", err.Error())
+			return
+		}
+		if err = stderrWriter.Close(); err != nil {
+			Debugf("%s", err.Error())
+			return
+		}
+
 
 		wg.Wait()
 	} (l, name, command, secret)
