@@ -174,7 +174,7 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "failed listening")
 		return
 	}
-	fmt.Fprintf(w, "Port: %s", l.Addr())
+	fmt.Fprintf(w, "Port: ", l.Addr().String())
 
 	go func(l net.Listener, name string, command string, secret string) {
 		conn, err := l.Accept()
