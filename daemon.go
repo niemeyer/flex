@@ -15,15 +15,14 @@ import (
 	"github.com/kr/pty"
 )
 
-const lxcpath = "/var/lib/flex/lxc"
-
 // A Daemon can respond to requests from a flex client.
 type Daemon struct {
-	tomb   tomb.Tomb
-	config Config
-	l      net.Listener
-	idmap  *Idmap
-	mux    *http.ServeMux
+	tomb     tomb.Tomb
+	config   Config
+	l        net.Listener
+	idmap    *Idmap
+	lxcpath  string
+	mux      *http.ServeMux
 }
 
 // varPath returns the provided path elements joined by a slash and
@@ -53,16 +52,17 @@ func StartDaemon(config *Config) (*Daemon, error) {
 		return nil, err
 	}
 
-	d.mux.HandleFunc("/start", buildByNameServe("start", func(c *lxc.Container) error { return c.Start() }))
-	d.mux.HandleFunc("/stop", buildByNameServe("stop", func(c *lxc.Container) error { return c.Stop() }))
-	d.mux.HandleFunc("/reboot", buildByNameServe("reboot", func(c *lxc.Container) error { return c.Reboot() }))
-	d.mux.HandleFunc("/destroy", buildByNameServe("destroy", func(c *lxc.Container) error { return c.Destroy() }))
+	d.mux.HandleFunc("/start", buildByNameServe("start", func(c *lxc.Container) error { return c.Start() }, d))
+	d.mux.HandleFunc("/stop", buildByNameServe("stop", func(c *lxc.Container) error { return c.Stop() }, d))
+	d.mux.HandleFunc("/reboot", buildByNameServe("reboot", func(c *lxc.Container) error { return c.Reboot() }, d))
+	d.mux.HandleFunc("/destroy", buildByNameServe("destroy", func(c *lxc.Container) error { return c.Destroy() }, d))
 
+	d.lxcpath = varPath("lxc")
 	err = os.MkdirAll(varPath("/"), 0755)
 	if err != nil {
 		return nil, err
 	}
-	err = os.MkdirAll(lxcpath, 0755)
+	err = os.MkdirAll(d.lxcpath, 0755)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (d *Daemon) servePing(w http.ResponseWriter, r *http.Request) {
 
 func (d *Daemon) serveList(w http.ResponseWriter, r *http.Request) {
 	Debugf("responding to list")
-	c := lxc.DefinedContainers(lxcpath)
+	c := lxc.DefinedContainers(d.lxcpath)
 	for i := range c {
 		fmt.Fprintf(w, "%d: %s (%s)\n", i, c[i].Name(), c[i].State())
 	}
@@ -163,7 +163,7 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		}
 		Debugf("Attaching")
 
-		c, err := lxc.NewContainer(name, lxcpath)
+		c, err := lxc.NewContainer(name, d.lxcpath)
 		if err != nil {
 			Debugf("%s", err.Error())
 		}
@@ -247,7 +247,7 @@ func (d *Daemon) serveCreate(w http.ResponseWriter, r *http.Request) {
 		Arch:     arch,
 	}
 
-	c, err := lxc.NewContainer(name, lxcpath)
+	c, err := lxc.NewContainer(name, d.lxcpath)
 	if err != nil {
 		return
 	}
@@ -262,7 +262,7 @@ func (d *Daemon) serveCreate(w http.ResponseWriter, r *http.Request) {
 
 type byname func(*lxc.Container) error
 
-func buildByNameServe(function string, f byname) func(http.ResponseWriter, *http.Request) {
+func buildByNameServe(function string, f byname, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		Debugf(fmt.Sprintf("responding to %s", function))
 
@@ -272,7 +272,7 @@ func buildByNameServe(function string, f byname) func(http.ResponseWriter, *http
 			return
 		}
 
-		c, err := lxc.NewContainer(name, lxcpath)
+		c, err := lxc.NewContainer(name, d.lxcpath)
 		if err != nil {
 			fmt.Fprintf(w, "failed getting container")
 			return
