@@ -22,6 +22,7 @@ type Daemon struct {
 	tomb   tomb.Tomb
 	config Config
 	l      net.Listener
+	idmap  *Idmap
 	mux    *http.ServeMux
 }
 
@@ -46,12 +47,18 @@ func StartDaemon(config *Config) (*Daemon, error) {
 	d.mux.HandleFunc("/create", d.serveCreate)
 	d.mux.HandleFunc("/attach", d.serveAttach)
 
+	m := new(Idmap)
+	err := m.InitUidmap()
+	if err != nil {
+		return nil, err
+	}
+
 	d.mux.HandleFunc("/start", buildByNameServe("start", func(c *lxc.Container) error { return c.Start() }))
 	d.mux.HandleFunc("/stop", buildByNameServe("stop", func(c *lxc.Container) error { return c.Stop() }))
 	d.mux.HandleFunc("/reboot", buildByNameServe("reboot", func(c *lxc.Container) error { return c.Reboot() }))
 	d.mux.HandleFunc("/destroy", buildByNameServe("destroy", func(c *lxc.Container) error { return c.Destroy() }))
 
-	err := os.MkdirAll(varPath("/"), 0755)
+	err = os.MkdirAll(varPath("/"), 0755)
 	if err != nil {
 		return nil, err
 	}
