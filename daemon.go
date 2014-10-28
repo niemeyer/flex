@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/tomb.v2"
@@ -156,16 +155,9 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 			Debugf("read %d characters, secret is %d", n, len(secret))
 			return
 		}
-		if !strings.EqualFold(string(b), secret) {
-			Debugf("strings not equal")
-			// Why do they never match?  TODO fix
-			// return
-			// FIXME(niemeyer): It does not match because the
-			// provided buffer has length 100, so string(b) will
-			// also have lenght 100. It should be string(b[:n]) instead.
-			// Why is casing being folded here? Shouldn't that be just
-			//     string(b[:n]) == secret
-			// ?
+		if string(b[:n]) != secret {
+			Debugf("Wrong secret received from attach client")
+			return
 		}
 		Debugf("Attaching")
 
