@@ -53,14 +53,13 @@ func (c *attachCmd) run(args []string) error {
 		return err
 	}
 
-	var oldttystate *terminal.State
 	cfd := syscall.Stdout
 	if terminal.IsTerminal(cfd) {
-		oldttystate, err = terminal.MakeRaw(cfd)
+		oldttystate, err := terminal.MakeRaw(cfd)
 		if err != nil {
 			return err
 		}
-
+		defer terminal.Restore(cfd, oldttystate)
 	}
 
 	// read the new port from l
@@ -107,11 +106,13 @@ func (c *attachCmd) run(args []string) error {
 		}
 	}()
 
+	// FIXME(niemeyer): WaitGroup is being misused here. Add(0) is a NOOP,
+	// and the Done below decrements a counter that was not incremented,
+	// which will lead to a crash if ever executed, or will unblock the
+	// wait group before the goroutines above are done. It's also not clear
+	// what is the intent here. The WaitGroup would only unblock once
+	// stdout EOFs or something else fails.
 	wg.Wait()
-
-	if oldttystate != nil {
-		defer terminal.Restore(cfd, oldttystate)
-	}
 
 	return nil
 }

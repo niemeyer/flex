@@ -160,6 +160,12 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 			Debugf("strings not equal")
 			// Why do they never match?  TODO fix
 			// return
+			// FIXME(niemeyer): It does not match because the
+			// provided buffer has length 100, so string(b) will
+			// also have lenght 100. It should be string(b[:n]) instead.
+			// Why is casing being folded here? Shouldn't that be just
+			//     string(b[:n]) == secret
+			// ?
 		}
 		Debugf("Attaching")
 
@@ -178,6 +184,11 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		defer pty.Close()
 		defer tty.Close()
 
+		// FIXME(niemeyer): tomb is not doing anything useful in this case.
+		// It cannot externally kill the goroutines without them collaborating
+		// to make that possible. Please see the blog post for details:
+		// 
+		// http://blog.labix.org/2011/10/09/death-of-goroutines-under-control
 		var tomb tomb.Tomb
 		tomb.Go(func() error {
 			_, err := io.Copy(pty, conn)
