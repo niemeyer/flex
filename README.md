@@ -19,6 +19,12 @@ Running the tool
 
     # On another terminal, ping it:
     ./flex ping --debug
+    ./flex create c1
+    ./flex list
+    ./flex start c1
+    ./flex attach c1
+    # play in the root@c1 shell, then exit
+    ./flex stop c1
 
 Running tests
 -------------
