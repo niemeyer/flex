@@ -4,6 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/user"
+	"strconv"
+	"strings"
 )
 
 /*
@@ -23,7 +26,7 @@ type Idmap struct {
 	gidmin, gidrange uint
 }
 
-func checkmap(fname string) (uint, uint, error) {
+func checkmap(fname string, username string) (uint, uint, error) {
 	f, err := os.Open(fname)
 	var min uint
 	var idrange uint
@@ -32,20 +35,40 @@ func checkmap(fname string) (uint, uint, error) {
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
+	min = 0
+	idrange = 0
 	for scanner.Scan() {
-		fmt.Println("scannling line: %s", scanner.Text())
+		s := strings.Split(scanner.Text(), ":")
+		if strings.EqualFold(s[0], username) {
+			bigmin, err := strconv.ParseUint(s[1], 10, 32)
+			if err != nil {
+				continue
+			}
+			bigidrange, err := strconv.ParseUint(s[2], 10, 32)
+			if err != nil {
+				continue
+			}
+			min = uint(bigmin)
+			idrange = uint(bigidrange)
+		}
 	}
-	min = 100000
-	idrange = 65536
+	if idrange == 0 {
+		return 0, 0, fmt.Errorf("User %q has no subuids.", username)
+	}
 	return min, idrange, nil
 }
 
 func (m *Idmap) InitUidmap() error {
-	umin, urange, err := checkmap("/etc/subuid")
+	me, err := user.Current()
 	if err != nil {
 		return err
 	}
-	gmin, grange, err := checkmap("/etc/subgid")
+
+	umin, urange, err := checkmap("/etc/subuid", me.Username)
+	if err != nil {
+		return err
+	}
+	gmin, grange, err := checkmap("/etc/subgid", me.Username)
 	if err != nil {
 		return err
 	}
