@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/tomb.v2"
@@ -163,27 +162,21 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		defer pty.Close()
 		defer tty.Close()
 
-		Debugf("starting wg")
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		var tomb tomb.Tomb
+		tomb.Go(func() error {
 			_, err := io.Copy(pty, conn)
 			if err != nil {
-				Debugf("attach i/o loop error: %s", err.Error())
-				return
+				return err
 			}
-		}()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+			return nil
+		})
+		tomb.Go(func() error {
 			_, err := io.Copy(conn, pty)
 			if err != nil {
-				Debugf("attach i/o loop error: %s", err.Error())
-				return
+				return err
 			}
-		}()
-		wg.Add(1)
+			return nil
+		})
 
 		options := lxc.DefaultAttachOptions
 
@@ -192,19 +185,15 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		options.StderrFd = tty.Fd()
 
 		options.ClearEnv = true
-		Debugf("doing runcommand")
 
 		_, err = c.RunCommand([]string{command}, options)
-		Debugf("after runcommand")
 		if err != nil {
 			Debugf("RunCommand error: %s", err.Error())
 			return
 		}
 
-		Debugf("waiting on wg")
-		wg.Wait()
-		Debugf("done waiting on wg")
-
+		Debugf("RunCommand exited, stopping console")
+		tomb.Kill(errStop)
 	} (l, name, command, secret)
 }
 

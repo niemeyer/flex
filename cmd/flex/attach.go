@@ -7,6 +7,9 @@ import (
 	"net"
 	"os"
 	"sync"
+	"syscall"
+
+	"code.google.com/p/go.crypto/ssh/terminal"
 )
 
 type attachCmd struct{}
@@ -50,6 +53,16 @@ func (c *attachCmd) run(args []string) error {
 		return err
 	}
 
+	var oldttystate *terminal.State
+	cfd := syscall.Stdout
+	if terminal.IsTerminal(cfd) {
+		oldttystate, err = terminal.MakeRaw(cfd)
+		if err != nil {
+			return err
+		}
+
+	}
+
 	// read the new port from l
 	// open a connection to l and connect stdin/stdout to it
 
@@ -75,27 +88,30 @@ func (c *attachCmd) run(args []string) error {
 	}
 
 	var wg sync.WaitGroup
-	fmt.Println("Ready to attach conn to stdin/stdout")
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		_, err := io.Copy(os.Stdout, conn)
 		if err != nil {
-			fmt.Println("Error: %s", err.Error())
+			fmt.Println("Connection read error: %s", err.Error())
 			return
 		}
 	}()
-	wg.Add(1)
+	wg.Add(0) // stdin won't hangup when we're done, so don't wait for it
 	go func() {
 		defer wg.Done()
 		_, err := io.Copy(conn, os.Stdin)
 		if err != nil {
-			fmt.Println("Error: %s", err.Error())
+			fmt.Println("Stdin read error: %s", err.Error())
 			return
 		}
 	}()
 
 	wg.Wait()
+
+	if oldttystate != nil {
+		defer terminal.Restore(cfd, oldttystate)
+	}
 
 	return nil
 }
