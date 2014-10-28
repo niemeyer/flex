@@ -184,6 +184,14 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		defer pty.Close()
 		defer tty.Close()
 
+		/*
+		 * The pty will be passed to the container's Attach.  The two
+		 * below goroutines will copy output from the socket to the
+		 * pty.stdin, and from pty.std{out,err} to the socket
+		 * If the RunCommand exits, we want ourselves (the gofunc) and
+		 * the copy-goroutines to exit.  If the connection closes, we
+		 * also want to exit
+		 */
 		// FIXME(niemeyer): tomb is not doing anything useful in this case.
 		// It cannot externally kill the goroutines without them collaborating
 		// to make that possible. Please see the blog post for details:

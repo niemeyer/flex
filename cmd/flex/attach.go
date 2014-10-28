@@ -86,6 +86,12 @@ func (c *attachCmd) run(args []string) error {
 		return err
 	}
 
+	/*
+	 * The two below goroutines copy stdin to the socket, and output
+	 * from the socket to our stdout.
+	 * When the socket is closed, we want ourselves and all
+	 * subroutines to exit
+	 */
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
