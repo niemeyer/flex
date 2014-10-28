@@ -89,6 +89,14 @@ func (c *Client) CallByName(function string, name string) (string, error) {
 	return data, err
 }
 
+func (c *Client) Destroy(name string) (string, error) {
+	return c.CallByName("destroy", name)
+}
+
+func (c *Client) Reboot(name string) (string, error) {
+	return c.CallByName("reboot", name)
+}
+
 func (c *Client) Start(name string) (string, error) {
 	return c.CallByName("start", name)
 }

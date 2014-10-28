@@ -62,6 +62,14 @@ var commands = map[string]command{
 	"list":    &listCmd{},
 	"create":  &createCmd{},
 	"attach":  &attachCmd{},
+	"reboot": &byNameCmd{
+		"reboot",
+		func(c *flex.Client, name string) (string, error) { return c.Reboot(name) },
+	},
+	"destroy": &byNameCmd{
+		"destroy",
+		func(c *flex.Client, name string) (string, error) { return c.Destroy(name) },
+	},
 	"start": &byNameCmd{
 		"start",
 		func(c *flex.Client, name string) (string, error) { return c.Start(name) },
