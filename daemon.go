@@ -15,7 +15,7 @@ import (
 	"github.com/kr/pty"
 )
 
-const lxcpath = "/var/lib/lxc"
+const lxcpath = "/var/lib/flex/lxc"
 
 // A Daemon can respond to requests from a flex client.
 type Daemon struct {
@@ -30,7 +30,7 @@ type Daemon struct {
 func varPath(path ...string) string {
 	varDir := os.Getenv("FLEX_DIR")
 	if varDir == "" {
-		return "/var/lib/flex"
+		varDir = "/var/lib/flex"
 	}
 	items := []string{varDir}
 	items = append(items, path...)
@@ -50,6 +50,15 @@ func StartDaemon(config *Config) (*Daemon, error) {
 	d.mux.HandleFunc("/stop", buildByNameServe("stop", func(c *lxc.Container) error { return c.Stop() }))
 	d.mux.HandleFunc("/reboot", buildByNameServe("reboot", func(c *lxc.Container) error { return c.Reboot() }))
 	d.mux.HandleFunc("/destroy", buildByNameServe("destroy", func(c *lxc.Container) error { return c.Destroy() }))
+
+	err := os.MkdirAll(varPath("/"), 0755)
+	if err != nil {
+		return nil, err
+	}
+	err = os.MkdirAll(lxcpath, 0755)
+	if err != nil {
+		return nil, err
+	}
 
 	addr, err := net.ResolveUnixAddr("unix", varPath("unix.socket"))
 	if err != nil {
