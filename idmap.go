@@ -26,6 +26,9 @@ type Idmap struct {
 	gidmin, gidrange uint
 }
 
+// TODO(niemeyer): Should Idmap be exported? In other words, will the user-oriented API
+// depend on it, or is it an implementation detail? If the latter, we should lowercase it.
+
 func checkmap(fname string, username string) (uint, uint, error) {
 	f, err := os.Open(fname)
 	var min uint

@@ -45,6 +45,8 @@ func StartDaemon(config *Config) (*Daemon, error) {
 	d.mux.HandleFunc("/create", d.serveCreate)
 	d.mux.HandleFunc("/attach", d.serveAttach)
 
+	// TODO(niemeyer): The sequence below is typically spelled as m, err := NewIdMap(),
+	// or newIdMap if unexported (see the comment in idmap.go).
 	m := new(Idmap)
 	err := m.InitUidmap()
 	if err != nil {
@@ -92,10 +94,47 @@ func (d *Daemon) Stop() error {
 	return err
 }
 
+// None of the daemon methods should print anything to stdout or stderr. If
+// there's a local issue in the daemon that the admin should know about, it
+// should be logged using either Logf or Debugf.
+//
+// Then, all of those issues that prevent the request from being served properly
+// for any reason (bad parameters or any other local error) should be notified
+// back to the client by writing an error json document to w, which in turn will
+// be read by the client and returned via the API as an error result. These
+// errors then surface via the CLI (cmd/flex/*) in os.Stderr.
+//
+// Together, these ideas ensure that we have a proper daemon, and a proper client,
+// which can both be used independently and also embedded into other applications.
+
 func (d *Daemon) servePing(w http.ResponseWriter, r *http.Request) {
 	Debugf("responding to ping")
 	w.Write([]byte("pong"))
 }
+
+// FIXME(niemeyer): These methods should be returning json to the client.
+// They may be easily converted by replacing:
+//
+//     fmt.Fprintf(w, "Port: %d", port)
+//
+// with:
+//
+//     type jmap map[string]interface{}
+//     err := json.NewEncoder(w).Encode(jmap{"port": port})
+//
+// Common results may also be done with a struct. For example, for errors
+// something like this might be convenient:
+//
+//     type jerror struct {
+//         Error string `json:"error"`
+//     }
+//
+// It may then be used as:
+//
+//     err := json.NewEncoder(w).Encode(jerror{"message"})
+//
+// I suggest establishing a few strong conventions early on for how an error
+// document looks like, etc.
 
 func (d *Daemon) serveList(w http.ResponseWriter, r *http.Request) {
 	Debugf("responding to list")
@@ -135,9 +174,9 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "failed listening")
 		return
 	}
-	fmt.Fprintf(w, "Port: ", l.Addr().String())
+	fmt.Fprintf(w, "Port: %s", l.Addr())
 
-	go func (l net.Listener, name string, command string, secret string) {
+	go func(l net.Listener, name string, command string, secret string) {
 		conn, err := l.Accept()
 		l.Close()
 		if err != nil {
@@ -145,6 +184,22 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer conn.Close()
+
+		// FIXME(niemeyer): This likely works okay because the kernel tends to
+		// be sane enough to not break down such a small amount of data into
+		// multiple operations. That said, if we were to make it work
+		// independent of the good will of the kernel and network layers, we'd
+		// have to take into account that Read might also return a single byte,
+		// for example, and then return more when it was next called. Or, it
+		// might return a password plus more data that the client delivered
+		// anticipating it would have a successful authentication.
+		//
+		// We could easily handle it using buffered io (bufio package), but that
+		// would spoil the use of conn directly below when binding it to
+		// the pty. So, given it's a trivial amount of data, I suggest calling
+		// a local helper function that will read byte by byte until it finds
+		// a predefined delimiter ('\n'?) and returns (data string, err error).
+		//
 		b := make([]byte, 100)
 		n, err := conn.Read(b)
 		if err != nil {
@@ -187,7 +242,7 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		// FIXME(niemeyer): tomb is not doing anything useful in this case.
 		// It cannot externally kill the goroutines without them collaborating
 		// to make that possible. Please see the blog post for details:
-		// 
+		//
 		// http://blog.labix.org/2011/10/09/death-of-goroutines-under-control
 		var tomb tomb.Tomb
 		tomb.Go(func() error {
@@ -221,7 +276,7 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 
 		Debugf("RunCommand exited, stopping console")
 		tomb.Kill(errStop)
-	} (l, name, command, secret)
+	}(l, name, command, secret)
 }
 
 func (d *Daemon) serveCreate(w http.ResponseWriter, r *http.Request) {
@@ -265,9 +320,9 @@ func (d *Daemon) serveCreate(w http.ResponseWriter, r *http.Request) {
 
 	err = c.Create(opts)
 	if err != nil {
-		fmt.Fprintf(w, "success!")
-	} else {
 		fmt.Fprintf(w, "fail!")
+	} else {
+		fmt.Fprintf(w, "success!")
 	}
 }
 
@@ -275,7 +330,7 @@ type byname func(*lxc.Container) error
 
 func buildByNameServe(function string, f byname, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		Debugf(fmt.Sprintf("responding to %s", function))
+		Debugf("responding to %s", function)
 
 		name := r.FormValue("name")
 		if name == "" {
