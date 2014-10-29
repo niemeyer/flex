@@ -239,11 +239,6 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		 * the copy-goroutines to exit.  If the connection closes, we
 		 * also want to exit
 		 */
-		// FIXME(niemeyer): tomb is not doing anything useful in this case.
-		// It cannot externally kill the goroutines without them collaborating
-		// to make that possible. Please see the blog post for details:
-		//
-		// http://blog.labix.org/2011/10/09/death-of-goroutines-under-control
 		go func() {
 			io.Copy(pty, conn)
 			Debugf("conn->pty exiting")
@@ -265,7 +260,6 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 
 		_, err = c.RunCommand([]string{command}, options)
 		if err != nil {
-			fmt.Fprintf(w, "RunCommand error: %s", err.Error())
 			return
 		}
 
