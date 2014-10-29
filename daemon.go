@@ -248,15 +248,19 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		tomb.Go(func() error {
 			_, err := io.Copy(pty, conn)
 			if err != nil {
+				Debugf("conn->pty exiting on error")
 				return err
 			}
+			Debugf("conn->pty exiting")
 			return nil
 		})
 		tomb.Go(func() error {
 			_, err := io.Copy(conn, pty)
 			if err != nil {
+				Debugf("pty->conn exiting on error")
 				return err
 			}
+			Debugf("pty->conn exiting")
 			return nil
 		})
 
@@ -270,7 +274,7 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 
 		_, err = c.RunCommand([]string{command}, options)
 		if err != nil {
-			Debugf("RunCommand error: %s", err.Error())
+			fmt.Fprintf(w, "RunCommand error: %s", err.Error())
 			return
 		}
 
