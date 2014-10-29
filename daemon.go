@@ -169,7 +169,6 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var err error
 	addr := ":0"
 	// tcp6 doesn't seem to work with Dial("tcp", ) at the client
 	l, err := net.Listen("tcp4", addr)
@@ -177,7 +176,7 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "failed listening")
 		return
 	}
-	fmt.Fprintf(w, "Port: ", l.Addr().String())
+	fmt.Fprintf(w, "%s", l.Addr().String())
 
 	go func(l net.Listener, name string, command string, secret string) {
 		conn, err := l.Accept()
