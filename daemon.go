@@ -244,25 +244,16 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		// to make that possible. Please see the blog post for details:
 		//
 		// http://blog.labix.org/2011/10/09/death-of-goroutines-under-control
-		var tomb tomb.Tomb
-		tomb.Go(func() error {
-			_, err := io.Copy(pty, conn)
-			if err != nil {
-				Debugf("conn->pty exiting on error")
-				return err
-			}
+		go func() {
+			io.Copy(pty, conn)
 			Debugf("conn->pty exiting")
-			return nil
-		})
-		tomb.Go(func() error {
-			_, err := io.Copy(conn, pty)
-			if err != nil {
-				Debugf("pty->conn exiting on error")
-				return err
-			}
+			return
+		}()
+		go func() {
+			io.Copy(conn, pty)
 			Debugf("pty->conn exiting")
-			return nil
-		})
+			return
+		}()
 
 		options := lxc.DefaultAttachOptions
 
@@ -279,7 +270,6 @@ func (d *Daemon) serveAttach(w http.ResponseWriter, r *http.Request) {
 		}
 
 		Debugf("RunCommand exited, stopping console")
-		tomb.Kill(errStop)
 	}(l, name, command, secret)
 }
 
