@@ -21,14 +21,10 @@ import (
  * For now, we simply have a single range, shared by all
  * containers
  */
-type Idmap struct {
+type idmap struct {
 	uidmin, uidrange uint
 	gidmin, gidrange uint
 }
-
-// TODO(niemeyer): Should Idmap be exported? In other words, will the user-oriented API
-// depend on it, or is it an implementation detail? If the latter, we should lowercase it.
-// (seh: undecided as yet afaik)
 
 func checkmap(fname string, username string) (uint, uint, error) {
 	f, err := os.Open(fname)
@@ -61,23 +57,24 @@ func checkmap(fname string, username string) (uint, uint, error) {
 	return 0, 0, fmt.Errorf("User %q has no subuids.", username)
 }
 
-func (m *Idmap) InitUidmap() error {
+func newIdmap() (*idmap, error) {
 	me, err := user.Current()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	m := new(idmap)
 	umin, urange, err := checkmap("/etc/subuid", me.Username)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	gmin, grange, err := checkmap("/etc/subgid", me.Username)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	m.uidmin = umin
 	m.uidrange = urange
 	m.gidmin = gmin
 	m.gidrange = grange
-	return nil
+	return m, nil
 }

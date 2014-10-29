@@ -19,7 +19,7 @@ type Daemon struct {
 	tomb     tomb.Tomb
 	config   Config
 	l        net.Listener
-	id_map    *Idmap
+	id_map    *idmap
 	lxcpath  string
 	mux      *http.ServeMux
 }
@@ -45,14 +45,12 @@ func StartDaemon(config *Config) (*Daemon, error) {
 	d.mux.HandleFunc("/create", d.serveCreate)
 	d.mux.HandleFunc("/attach", d.serveAttach)
 
-	// TODO(niemeyer): The sequence below is typically spelled as m, err := NewIdMap(),
-	// or newIdMap if unexported (see the comment in idmap.go).
-	d.id_map = new(Idmap)
-	err := d.id_map.InitUidmap()
+	var err error
+	d.id_map, err = newIdmap()
 	if err != nil {
 		return nil, err
 	}
-	Debugf("idmap is %u %u %u %u\n",
+	Debugf("idmap is %d %d %d %d\n",
 		d.id_map.uidmin,
 		d.id_map.uidrange,
 		d.id_map.gidmin,
