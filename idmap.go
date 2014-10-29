@@ -28,6 +28,7 @@ type Idmap struct {
 
 // TODO(niemeyer): Should Idmap be exported? In other words, will the user-oriented API
 // depend on it, or is it an implementation detail? If the latter, we should lowercase it.
+// (seh: undecided as yet afaik)
 
 func checkmap(fname string, username string) (uint, uint, error) {
 	f, err := os.Open(fname)
@@ -53,12 +54,11 @@ func checkmap(fname string, username string) (uint, uint, error) {
 			}
 			min = uint(bigmin)
 			idrange = uint(bigidrange)
+			return min, idrange,  nil
 		}
 	}
-	if idrange == 0 {
-		return 0, 0, fmt.Errorf("User %q has no subuids.", username)
-	}
-	return min, idrange, nil
+
+	return 0, 0, fmt.Errorf("User %q has no subuids.", username)
 }
 
 func (m *Idmap) InitUidmap() error {
@@ -75,7 +75,6 @@ func (m *Idmap) InitUidmap() error {
 	if err != nil {
 		return err
 	}
-	m = new(Idmap)
 	m.uidmin = umin
 	m.uidrange = urange
 	m.gidmin = gmin

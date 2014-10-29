@@ -19,7 +19,7 @@ type Daemon struct {
 	tomb     tomb.Tomb
 	config   Config
 	l        net.Listener
-	idmap    *Idmap
+	id_map    *Idmap
 	lxcpath  string
 	mux      *http.ServeMux
 }
@@ -47,11 +47,16 @@ func StartDaemon(config *Config) (*Daemon, error) {
 
 	// TODO(niemeyer): The sequence below is typically spelled as m, err := NewIdMap(),
 	// or newIdMap if unexported (see the comment in idmap.go).
-	m := new(Idmap)
-	err := m.InitUidmap()
+	d.id_map = new(Idmap)
+	err := d.id_map.InitUidmap()
 	if err != nil {
 		return nil, err
 	}
+	Debugf("idmap is %u %u %u %u\n",
+		d.id_map.uidmin,
+		d.id_map.uidrange,
+		d.id_map.gidmin,
+		d.id_map.gidrange)
 
 	d.mux.HandleFunc("/start", buildByNameServe("start", func(c *lxc.Container) error { return c.Start() }, d))
 	d.mux.HandleFunc("/stop", buildByNameServe("stop", func(c *lxc.Container) error { return c.Stop() }, d))
@@ -306,6 +311,37 @@ func (d *Daemon) serveCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/*
+	 * Set the id mapping. This may not be how we want to do it, but it's a
+	 * start.  First, we remove any id_map lines in the config which might
+	 * have come from ~/.config/lxc/default.conf.  Then add id mapping based
+	 * on Domain.id_map
+	 */
+	if d.id_map != nil {
+		Debugf("setting custom idmap")
+		err = c.SetConfigItem("lxc.id_map", "")
+		if err != nil {
+			fmt.Fprintf(w, "Failed to clear id mapping, continuing")
+		}
+		uidstr := fmt.Sprintf("u 0 %d %d\n", d.id_map.uidmin, d.id_map.uidrange)
+		Debugf("uidstr is %s\n", uidstr)
+		err = c.SetConfigItem("lxc.id_map", uidstr)
+		if err != nil {
+			fmt.Fprintf(w, "Failed to set uid mapping")
+			return
+		}
+		gidstr := fmt.Sprintf("g 0 %d %d\n", d.id_map.gidmin, d.id_map.gidrange)
+		err = c.SetConfigItem("lxc.id_map", gidstr)
+		if err != nil {
+			fmt.Fprintf(w, "Failed to set gid mapping")
+			return
+		}
+		c.SaveConfigFile("/tmp/c")
+	}
+
+	/*
+	 * Actually create the container
+	 */
 	err = c.Create(opts)
 	if err != nil {
 		fmt.Fprintf(w, "fail!")
