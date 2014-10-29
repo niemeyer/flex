@@ -104,7 +104,6 @@ func (c *attachCmd) run(args []string) error {
 	}()
 	wg.Add(0) // stdin won't hangup when we're done, so don't wait for it
 	go func() {
-		defer wg.Done()
 		_, err := io.Copy(conn, os.Stdin)
 		if err != nil {
 			fmt.Println("Stdin read error: %s", err.Error())
