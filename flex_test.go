@@ -39,7 +39,9 @@ func (s *FlexSuite) SetUpTest(c *C) {
 
 	os.Mkdir(filepath.Dir(s.confPath), 0700)
 
-	var config flex.Config
+	config := flex.Config{
+		ListenAddr: "localhost:43789",
+	}
 	daemon, err := flex.StartDaemon(&config)
 	c.Assert(err, IsNil)
 	client, err := flex.NewClient(&config)
@@ -49,11 +51,26 @@ func (s *FlexSuite) SetUpTest(c *C) {
 }
 
 func (s *FlexSuite) TearDownTest(c *C) {
+	s.daemon.Stop()
+
 	os.Setenv("HOME", s.realHome)
 	os.Setenv("FLEX_DIR", "")
 }
 
 func (s *FlexSuite) TestPing(c *C) {
 	// NewClient should have pinged already.
-	c.Assert(c.GetTestLog(), Matches, "(?s).*responding to ping.*")
+	c.Assert(c.GetTestLog(), Matches, "(?s).*responding to ping from unix socket.*")
+}
+
+func (s *FlexSuite) TestRemotePing(c *C) {
+	config := flex.Config{
+		DefaultRemote: "test",
+		Remotes: map[string]flex.RemoteConfig{
+			"test": {Addr: "localhost:43789"},
+		},
+	}
+	_, err := flex.NewClient(&config)
+	c.Assert(err, IsNil)
+	// NewClient should have pinged already.
+	c.Assert(c.GetTestLog(), Matches, "(?s).*responding to ping from 127.0.0.1:.*")
 }

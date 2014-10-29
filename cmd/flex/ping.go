@@ -4,7 +4,9 @@ import (
 	"github.com/niemeyer/flex"
 )
 
-type pingCmd struct{}
+type pingCmd struct {
+	httpAddr string
+}
 
 const pingUsage = `
 flex ping
@@ -26,6 +28,7 @@ func (c *pingCmd) run(args []string) error {
 	if err != nil {
 		return err
 	}
+	remoteHack(config)
 
 	// NewClient will ping the server to test the connection before returning.
 	_, err = flex.NewClient(config)

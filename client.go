@@ -11,8 +11,9 @@ import (
 
 // Client can talk to a flex daemon.
 type Client struct {
-	config Config
-	http   http.Client
+	config  Config
+	http    http.Client
+	baseURL string
 }
 
 // NewClient returns a new flex client.
@@ -21,9 +22,16 @@ func NewClient(config *Config) (*Client, error) {
 		config: *config,
 		http: http.Client{
 			// Added on Go 1.3. Wait until it's more popular.
-			//Timeout:   10 * time.Second,
-			Transport: &unixTransport,
+			//Timeout: 10 * time.Second,
 		},
+	}
+	if config.DefaultRemote == "" || config.DefaultRemote == "local" {
+		c.baseURL = "http://unix.socket"
+		c.http.Transport = &unixTransport
+	} else if r, ok := config.Remotes[config.DefaultRemote]; ok {
+		c.baseURL = "http://" + r.Addr
+	} else {
+		return nil, fmt.Errorf("unknown remote name: %q", config.DefaultRemote)
 	}
 	if err := c.Ping(); err != nil {
 		return nil, err
@@ -132,7 +140,7 @@ func (c *Client) get(elem ...string) ([]byte, error) {
 }
 
 func (c *Client) url(elem ...string) string {
-	return "http://unix.socket" + path.Join(elem...)
+	return c.baseURL + path.Join(elem...)
 }
 
 var unixTransport = http.Transport{

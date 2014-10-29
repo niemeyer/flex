@@ -6,9 +6,12 @@ import (
 	"syscall"
 
 	"github.com/niemeyer/flex"
+	"github.com/niemeyer/flex/internal/gnuflag"
 )
 
-type daemonCmd struct{}
+type daemonCmd struct {
+	listenAddr string
+}
 
 const daemonUsage = `
 flex daemon
@@ -21,6 +24,7 @@ func (c *daemonCmd) usage() string {
 }
 
 func (c *daemonCmd) flags() {
+	gnuflag.StringVar(&c.listenAddr, "tcp", "", "TCP address to listen on in addition to the unix socket")
 }
 
 func (c *daemonCmd) run(args []string) error {
@@ -32,6 +36,7 @@ func (c *daemonCmd) run(args []string) error {
 	if err != nil {
 		return err
 	}
+	config.ListenAddr = c.listenAddr
 
 	d, err := flex.StartDaemon(config)
 	if err != nil {

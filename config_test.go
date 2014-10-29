@@ -50,5 +50,5 @@ func (s *ConfigSuite) TestSaveConfig(c *C) {
 	c.Assert(err, IsNil)
 	data, err := ioutil.ReadFile(s.confPath)
 	c.Assert(err, IsNil)
-	c.Assert(string(data), Equals, "test-option: value\n")
+	c.Assert(string(data), Matches, "(?s)test-option: value\n.*")
 }

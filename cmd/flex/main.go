@@ -20,6 +20,19 @@ func main() {
 var verbose = gnuflag.Bool("v", false, "Enables verbose mode.")
 var debug = gnuflag.Bool("debug", false, "Enables debug mode.")
 
+// FIXME: This is a hack while the support for remotes is still incipient.
+// Drop it and replace by first-class support for named remotes.
+var remoteAddr = gnuflag.String("remote", "", "TCP address of daemon")
+
+func remoteHack(config *flex.Config) {
+	if *remoteAddr != "" {
+		config.Remotes = map[string]flex.RemoteConfig{
+			"hack": {Addr: *remoteAddr},
+		}
+		config.DefaultRemote = "hack"
+	}
+}
+
 func run() error {
 	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
 		os.Args[1] = "help"

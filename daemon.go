@@ -16,12 +16,13 @@ import (
 
 // A Daemon can respond to requests from a flex client.
 type Daemon struct {
-	tomb     tomb.Tomb
-	config   Config
-	l        net.Listener
-	id_map    *idmap
-	lxcpath  string
-	mux      *http.ServeMux
+	tomb    tomb.Tomb
+	config  Config
+	unixl   net.Listener
+	tcpl    net.Listener
+	id_map  *idmap
+	lxcpath string
+	mux     *http.ServeMux
 }
 
 // varPath returns the provided path elements joined by a slash and
@@ -71,16 +72,33 @@ func StartDaemon(config *Config) (*Daemon, error) {
 		return nil, err
 	}
 
-	addr, err := net.ResolveUnixAddr("unix", varPath("unix.socket"))
+	unixAddr, err := net.ResolveUnixAddr("unix", varPath("unix.socket"))
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
 	}
-	l, err := net.ListenUnix("unix", addr)
+	unixl, err := net.ListenUnix("unix", unixAddr)
 	if err != nil {
 		return nil, fmt.Errorf("cannot listen on unix socket: %v", err)
 	}
-	d.l = l
-	d.tomb.Go(func() error { return http.Serve(d.l, d.mux) })
+	d.unixl = unixl
+
+	if d.config.ListenAddr != "" {
+		// Watch out. Threre's a listener active which must be closed on errors.
+		tcpAddr, err := net.ResolveTCPAddr("tcp", d.config.ListenAddr)
+		if err != nil {
+			d.unixl.Close()
+			return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
+		}
+		tcpl, err := net.ListenTCP("tcp", tcpAddr)
+		if err != nil {
+			d.unixl.Close()
+			return nil, fmt.Errorf("cannot listen on unix socket: %v", err)
+		}
+		d.tcpl = tcpl
+		d.tomb.Go(func() error { return http.Serve(d.tcpl, d.mux) })
+	}
+
+	d.tomb.Go(func() error { return http.Serve(d.unixl, d.mux) })
 	return d, nil
 }
 
@@ -89,7 +107,10 @@ var errStop = fmt.Errorf("requested stop")
 // Stop stops the flex daemon.
 func (d *Daemon) Stop() error {
 	d.tomb.Kill(errStop)
-	d.l.Close()
+	d.unixl.Close()
+	if d.tcpl != nil {
+		d.tcpl.Close()
+	}
 	err := d.tomb.Wait()
 	if err == errStop {
 		return nil
@@ -111,7 +132,11 @@ func (d *Daemon) Stop() error {
 // which can both be used independently and also embedded into other applications.
 
 func (d *Daemon) servePing(w http.ResponseWriter, r *http.Request) {
-	Debugf("responding to ping")
+	remoteAddr := r.RemoteAddr
+	if remoteAddr == "@" {
+		remoteAddr = "unix socket"
+	}
+	Debugf("responding to ping from %s", remoteAddr)
 	w.Write([]byte("pong"))
 }
 

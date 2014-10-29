@@ -13,6 +13,27 @@ import (
 type Config struct {
 	// TestOption is used only for testing purposes.
 	TestOption string `yaml:"test-option,omitempty"`
+
+	// DefaultRemote holds the remote daemon name from the Remotes map
+	// that the client should communicate with by default.
+	// If empty it defaults to "local".
+	DefaultRemote  string `yaml:"default-remote"`
+
+	// Remotes defines a map of remote daemon names to the details for
+	// communication with the named daemon.
+	// The implicit "local" remote is always available and communicates
+	// with the local daemon over a unix socket.
+	Remotes map[string]RemoteConfig `yaml:"remotes"`
+
+	// ListenAddr the defines an alternative address for the local daemon
+	// to listen on. If empty, the daemon will listen only on the local
+	// unix socket address.
+	ListenAddr string `yaml:"listen-addr"`
+}
+
+// RemoteConfig holds details for communication with a remote daemon.
+type RemoteConfig struct {
+	Addr string `yaml:"addr"`
 }
 
 var configPath = "$HOME/.flex/config.yaml"
